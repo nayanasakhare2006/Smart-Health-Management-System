@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartHealth AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--ink:#16302b;--bg:#f3f6f5;--card:#fff;--line:#d6e0dd;--teal:#0f766e;--red:#b42318;--amb:#b54708;--grn:#067647;--mut:#5b706b}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 "Segoe UI",system-ui,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--ink);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:20px}header small{display:block;opacity:.75;font-size:12px}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.banner{background:#fff3cd;color:#664d03;padding:6px 16px;font-weight:600;font-size:13px;position:sticky;top:0;z-index:4;border-bottom:1px solid #e6cf7a}
+nav{display:flex;gap:4px;overflow-x:auto;padding:10px 16px 0;border-bottom:1px solid var(--line);background:var(--card)}
+.tab{border:0;background:none;padding:9px 14px;cursor:pointer;font:inherit;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.tab.on{color:var(--teal);border-color:var(--teal);font-weight:700}
+main{padding:16px;max-width:1250px;margin:auto}
+button,select,input{font:inherit}
+button.b{background:var(--teal);color:#fff;border:0;border-radius:6px;padding:6px 11px;cursor:pointer}
+button.b.o{background:#fff;color:var(--teal);border:1px solid var(--teal)}button.b.d{background:var(--red)}
+header select,header button{padding:6px 10px;border-radius:6px;border:0}
+input,select{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}input.sm{width:70px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.two{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.two .card{margin:0}
+.kpi b{font-size:30px;display:block;line-height:1.1}.kpi span{color:var(--mut);font-size:13px}.kpi.r b{color:var(--red)}
+h2{font-size:16px;margin:0 0 10px}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#eef3f2;font-weight:600}
+tr.hl td{background:#e6f4f1}
+.bg{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.crit{background:#fee4e2;color:var(--red)}.low,.watch{background:#fef0c7;color:var(--amb)}.ok{background:#dcfae6;color:var(--grn)}
+.al{padding:7px 10px;border-left:4px solid;margin-bottom:6px;background:#fafcfb;font-size:14px}.al.crit{border-color:var(--red)}.al.low{border-color:var(--amb)}
+.scroll{max-height:290px;overflow-y:auto}
+.form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}.form label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:2px}
+.bar{background:#e4ece9;border-radius:4px;height:10px;width:110px;display:inline-block;vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%}
+.bar .g{background:var(--grn)}.bar .y{background:#f79009}.bar .r{background:var(--red)}
+.note{color:var(--mut);font-size:13px;margin:0 0 10px}.rec{border-left:4px solid var(--teal);padding:8px 12px;margin-bottom:10px;background:#f6fbfa}
+.cell{border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:700}.cell.y{background:#dcfae6;color:var(--grn)}.cell.n{background:#fee4e2;color:var(--red)}
+.ch{height:230px;position:relative}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;display:none;z-index:9}
+@media(max-width:600px){main{padding:10px}.kpi b{font-size:24px}}
+</style></head><body>
+<header>
+ <div><h1>SmartHealth AI<small data-i="sub"></small></h1></div>
+ <div class="ctl"><select id="flt" onchange="setF(this.value)"></select>
+ <button id="lang" onclick="toggleLang()"></button><button onclick="resetDemo()" data-i="reset"></button></div>
+</header>
+<div class="banner" data-i="banner"></div>
+<nav id="tabs"></nav><main id="view"></main><div id="toast"></div>
+<script>
+/* ===== 1. TRANSLATIONS: [key, English, Hindi] ===== */
+const L=[
+['sub','AI-Driven Health Centre & Supply Chain Management','एआई-संचालित स्वास्थ्य केंद्र एवं आपूर्ति श्रृंखला प्रबंधन'],
+['banner','⚠ Synthetic demo data – not real healthcare data','⚠ कृत्रिम डेमो डेटा – वास्तविक स्वास्थ्य डेटा नहीं'],
+['allc','All centres (District)','सभी केंद्र (जिला)'],['reset','Reset demo data','डेमो डेटा रीसेट करें'],
+['t_dash','Dashboard','डैशबोर्ड'],['t_inv','Inventory','दवा भंडार'],['t_foot','Footfall','मरीज संख्या'],['t_beds','Beds','बिस्तर'],
+['t_docs','Doctors','डॉक्टर'],['t_diag','Diagnostics','जांच सुविधा'],['t_recs','Recommendations','सिफारिशें'],
+['k_risk','Centres at risk','जोखिम वाले केंद्र'],['k_low','Low-stock items','कम स्टॉक वाली दवाएं'],['k_beds','Bed occupancy','बिस्तर अधिभोग'],
+['k_docs','Doctors present','उपस्थित डॉक्टर'],['k_foot',"Today's footfall",'आज के मरीज'],
+['alerts','Alerts','चेतावनियां'],['noal','No alerts','कोई चेतावनी नहीं'],['rank','Centre risk ranking (0–100)','केंद्र जोखिम रैंकिंग (0–100)'],
+['ch_foot','Footfall – last 7 days','मरीज संख्या – पिछले 7 दिन'],['ch_beds','Bed occupancy %','बिस्तर अधिभोग %'],
+['top3','Top redistribution recommendations','शीर्ष पुनर्वितरण सिफारिशें'],
+['centre','Centre','केंद्र'],['score','Score','स्कोर'],['status','Status','स्थिति'],['c_s','Stock /30','स्टॉक /30'],['c_b','Beds /25','बिस्तर /25'],
+['c_d','Doctors /20','डॉक्टर /20'],['c_l','Load /15','भार /15'],['c_g','Tests /10','जांच /10'],['reason','Main reason','मुख्य कारण'],
+['crit','Critical','गंभीर'],['watch','Watch','निगरानी'],['ok','OK','सामान्य'],['low','Low','कम'],
+['r_s','Medicine stock','दवा स्टॉक'],['r_b','Bed pressure','बिस्तर दबाव'],['r_d','Doctor absence','डॉक्टर अनुपस्थिति'],['r_l','Patient load','मरीज भार'],['r_g','Tests down','जांच बंद'],
+['medicine','Medicine','दवा'],['stock','Stock','स्टॉक'],['reorder','Reorder level','पुनः ऑर्डर स्तर'],['avg','Avg use/day (7d)','औसत उपयोग/दिन (7 दिन)'],
+['days','Days left','शेष दिन'],['sodate','Predicted stock-out','अनुमानित समाप्ति'],['qty','Qty','मात्रा'],['use','Use','उपयोग'],['recv','Receive','प्राप्त'],
+['edit','Edit','संपादित'],['del','Delete','हटाएं'],['add_med','Add medicine','दवा जोड़ें'],['unit','Unit','इकाई'],['daily','Typical daily use','सामान्य दैनिक उपयोग'],
+['nodata','No usage data','उपयोग डेटा नहीं'],['add','Add','जोड़ें'],['name','Name','नाम'],
+['formula','Prediction: days left = stock ÷ average daily usage of the last 7 days. Alert when stock ≤ reorder level or days left < 7.','पूर्वानुमान: शेष दिन = स्टॉक ÷ पिछले 7 दिनों का औसत दैनिक उपयोग। स्टॉक ≤ पुनः ऑर्डर स्तर या शेष दिन < 7 होने पर चेतावनी।'],
+['log_foot','Log footfall','मरीज संख्या दर्ज करें'],['date','Date','तारीख'],['patients','Patients','मरीज'],['save','Save','सहेजें'],['ppd','Patients/doctor today','आज प्रति डॉक्टर मरीज'],
+['ward','Ward','वार्ड'],['total','Total','कुल'],['occ','Occupied','भरे हुए'],['free','Free','खाली'],['admit','Admit','भर्ती'],['disch','Discharge','छुट्टी'],['add_ward','Add ward','वार्ड जोड़ें'],
+['General Ward','General Ward','सामान्य वार्ड'],['Maternity','Maternity','प्रसूति'],['Pediatric','Pediatric','बाल रोग'],
+['doctor','Doctor','डॉक्टर'],['spec','Specialty','विशेषता'],['today','Today','आज'],['att','Attendance (14d)','उपस्थिति (14 दिन)'],
+['present','present','उपस्थित'],['absent','absent','अनुपस्थित'],['leave','leave','अवकाश'],['add_doc','Add doctor','डॉक्टर जोड़ें'],
+['General Medicine','General Medicine','सामान्य चिकित्सा'],['Paediatrics','Paediatrics','बाल रोग विशेषज्ञ'],['Gynaecology','Gynaecology','स्त्री रोग'],
+['test','Test','जांच'],['yes','Available','उपलब्ध'],['no','Unavailable','अनुपलब्ध'],['upd','Updated','अपडेट'],['dhint','Click a cell to toggle availability. Matrix covers the whole district.','उपलब्धता बदलने के लिए सेल पर क्लिक करें। यह पूरे जिले का मैट्रिक्स है।'],['availin','Available in','उपलब्ध केंद्र'],
+['Blood Test','Blood Test','रक्त जांच'],['X-Ray','X-Ray','एक्स-रे'],['Ultrasound','Ultrasound','अल्ट्रासाउंड'],['Malaria RDT','Malaria RDT','मलेरिया आरडीटी'],['ECG','ECG','ईसीजी'],['Urine Test','Urine Test','मूत्र जांच'],
+['apply','Apply transfer','स्थानांतरण लागू करें'],['norec','No transfers needed right now.','अभी किसी स्थानांतरण की आवश्यकता नहीं।'],['hist','Transfer history','स्थानांतरण इतिहास'],['from','From','से'],['to','To','को'],
+['recnote','Surplus = more than 30 days of cover. Deficit = less than 7 days. Target = 21 days. Nearest surplus centre is used first.','अधिशेष = 30 दिन से अधिक कवर। कमी = 7 दिन से कम। लक्ष्य = 21 दिन। सबसे नजदीकी अधिशेष केंद्र पहले चुना जाता है।'],
+['risknote','Risk score = medicine stock (30) + bed pressure (25) + doctor absence (20) + patient load (15) + tests down (10). Critical ≥ 60, Watch ≥ 35.','जोखिम स्कोर = दवा स्टॉक (30) + बिस्तर दबाव (25) + डॉक्टर अनुपस्थिति (20) + मरीज भार (15) + जांच बंद (10)। गंभीर ≥ 60, निगरानी ≥ 35।'],
+['a_out','{med} at {c}: OUT OF STOCK','{c} में {med}: स्टॉक समाप्त'],
+['a_days','{med} at {c}: only {d} days left (predicted stock-out {date})','{c} में {med}: केवल {d} दिन बचे (अनुमानित समाप्ति {date})'],
+['a_low','{med} at {c}: stock {s} is at or below reorder level {r}','{c} में {med}: स्टॉक {s} पुनः ऑर्डर स्तर {r} या उससे कम है'],
+['a_bed','{c}: {w} is {p}% full','{c}: {w} {p}% भरा है'],['a_doc','{c}: {d} is {s} today','{c}: {d} आज {s} हैं'],
+['a_diag','{c}: {n} diagnostic test(s) unavailable','{c}: {n} जांच उपलब्ध नहीं'],['a_risk','{c} is under-resourced (risk score {s}/100)','{c} में संसाधनों की कमी है (जोखिम स्कोर {s}/100)'],
+['rec_msg','{donor} has {dc} days of {med} cover; {recv} has {rc}. {donor} is {km} km away. Moving {qty} {unit} brings {recv} to about 21 days and leaves {donor} with about {dl} days.','{donor} के पास {med} का {dc} दिन का कवर है; {recv} के पास {rc} दिन। {donor} {km} किमी दूर है। {qty} {unit} भेजने से {recv} में लगभग 21 दिन का स्टॉक होगा और {donor} में लगभग {dl} दिन बचेंगे।'],
+['e_num','Enter valid non-negative numbers (quantity must be above 0).','सही संख्याएं दर्ज करें (मात्रा 0 से अधिक हो)।'],['e_name','Name is required.','नाम आवश्यक है।'],['e_use','Not enough stock for that quantity.','इतनी मात्रा का स्टॉक नहीं है।'],
+['e_full','Ward is full.','वार्ड भरा है।'],['e_zero','No occupied beds to discharge.','छुट्टी के लिए कोई भरा बिस्तर नहीं।'],['e_date','Choose a date.','तारीख चुनें।'],['saved','Saved.','सहेजा गया।'],
+['c_del','Delete this item?','क्या इसे हटाना चाहते हैं?'],['c_reset','Reset all data to the original demo data?','क्या सारा डेटा मूल डेमो डेटा पर रीसेट करें?'],['done_tr','Transfer applied.','स्थानांतरण लागू हुआ।'],['e_tr','Donor stock changed; transfer not applied.','दाता का स्टॉक बदल गया; स्थानांतरण लागू नहीं हुआ।'],
+['d','days','दिन'],
+['t_fc','Forecast','पूर्वानुमान'],['fc_cfg','Forecast settings','पूर्वानुमान सेटिंग'],['fc_lead','Supplier lead time (days)','आपूर्तिकर्ता लीड टाइम (दिन)'],
+['fc_safe','Safety stock (days)','सुरक्षा स्टॉक (दिन)'],['fc_cycle','Order covers (days)','ऑर्डर कितने दिन कवर करे'],
+['fc_ovr','Table: type a lead time in a row to override the default for that medicine; leave blank to use the default. Click a row to see its chart and worked calculation.','तालिका: किसी दवा का डिफ़ॉल्ट लीड टाइम बदलने के लिए पंक्ति में दिन लिखें; खाली छोड़ने पर डिफ़ॉल्ट लागू होगा। चार्ट और गणना देखने के लिए पंक्ति पर क्लिक करें।'],
+['fc_d','Forecast demand/day','अनुमानित मांग/दिन'],['fc_7','7-day demand','7 दिन की मांग'],['fc_30','30-day demand','30 दिन की मांग'],['fc_lt','Lead time (days)','लीड टाइम (दिन)'],
+['fc_rop','Reorder point','पुनः ऑर्डर बिंदु'],['fc_qty','Suggested order','सुझाया ऑर्डर'],['fc_risk','Shortage risk','कमी का जोखिम'],
+['fc_high','High','उच्च'],['fc_med','Medium','मध्यम'],['fc_lowr','Low','निम्न'],['fc_unk','Unknown','अज्ञात'],
+['fc_c1','Stock vs forecast demand (highest-risk items)','स्टॉक बनाम अनुमानित मांग (सबसे अधिक जोखिम वाली दवाएं)'],['fc_c2','Projected stock – next 30 days','अनुमानित स्टॉक – अगले 30 दिन'],
+['fc_ex','Worked calculation','गणना का उदाहरण'],['fc_proj','Projected stock','अनुमानित स्टॉक'],['fc_day','Day','दिन'],
+['fc_worked','Recent demand {r}/day (previous week {p}/day) × trend {tr} = forecast {d}/day. {s} {unit} ÷ {d} = {dl} days left (lead time {lead} days). Reorder point = {d} × ({lead} + {safe} safety days) = {rop}. {ord}','हाल की मांग {r}/दिन (पिछला सप्ताह {p}/दिन) × रुझान {tr} = अनुमान {d}/दिन। {s} {unit} ÷ {d} = {dl} दिन शेष (लीड टाइम {lead} दिन)। पुनः ऑर्डर बिंदु = {d} × ({lead} + {safe} सुरक्षा दिन) = {rop}। {ord}'],
+['fc_ordnow','Stock is at or below the reorder point, so order {q} {unit} now.','स्टॉक पुनः ऑर्डर बिंदु पर या उससे कम है, इसलिए अभी {q} {unit} ऑर्डर करें।'],
+['fc_ordlater','Stock is above the reorder point; reorder in about {n} days.','स्टॉक पुनः ऑर्डर बिंदु से ऊपर है; लगभग {n} दिन में ऑर्डर करें।'],
+['fc_gap','Warning: stock would run out about {x} days before an order placed today arrives, a shortfall of about {sh} units.','चेतावनी: आज दिया गया ऑर्डर पहुंचने से लगभग {x} दिन पहले स्टॉक खत्म हो जाएगा, लगभग {sh} इकाई की कमी।'],
+['fc_how','How these numbers are calculated','ये संख्याएं कैसे निकाली जाती हैं'],
+['fc_h1','Recent demand = usage logged in the last 7 days ÷ 7. Previous demand = usage in the 7 days before that ÷ 7.','हाल की मांग = पिछले 7 दिनों का उपयोग ÷ 7। पिछली मांग = उससे पहले के 7 दिनों का उपयोग ÷ 7।'],
+['fc_h2','Trend factor = recent ÷ previous demand, limited to 0.8–1.2 (1.0 if there is no earlier data). Forecast demand/day = recent demand × trend factor.','रुझान गुणक = हाल की ÷ पिछली मांग, 0.8–1.2 तक सीमित (पहले का डेटा न हो तो 1.0)। अनुमानित मांग/दिन = हाल की मांग × रुझान गुणक।'],
+['fc_h3','7-day demand = forecast/day × 7. 30-day demand = forecast/day × 30. The trend is held constant; seasons and outbreaks are not modelled.','7 दिन की मांग = अनुमान/दिन × 7। 30 दिन की मांग = अनुमान/दिन × 30। रुझान स्थिर माना गया है; मौसम और प्रकोप शामिल नहीं हैं।'],
+['fc_h4','Days remaining = stock ÷ forecast demand/day. Reorder point = forecast/day × (lead time + safety days). Suggested order = forecast/day × (lead time + safety + order-cover days) − stock, rounded up, only when stock ≤ reorder point.','शेष दिन = स्टॉक ÷ अनुमानित मांग/दिन। पुनः ऑर्डर बिंदु = अनुमान/दिन × (लीड टाइम + सुरक्षा दिन)। सुझाया ऑर्डर = अनुमान/दिन × (लीड टाइम + सुरक्षा + ऑर्डर कवर दिन) − स्टॉक, ऊपर पूर्णांकित, केवल जब स्टॉक ≤ पुनः ऑर्डर बिंदु।'],
+['fc_h5','Shortage risk: High if days remaining < lead time (stock runs out before a new order arrives). Medium if days remaining < lead time + safety days. Low otherwise. Unknown if there is no usage history.','कमी का जोखिम: उच्च यदि शेष दिन < लीड टाइम (नया ऑर्डर आने से पहले स्टॉक खत्म)। मध्यम यदि शेष दिन < लीड टाइम + सुरक्षा दिन। अन्यथा निम्न। उपयोग इतिहास न हो तो अज्ञात।'],
+['fc_h6','This is a transparent moving-average estimate, not machine learning. It uses synthetic demo data and must be checked by staff before ordering.','यह पारदर्शी मूविंग-एवरेज अनुमान है, मशीन लर्निंग नहीं। यह कृत्रिम डेमो डेटा पर आधारित है और ऑर्डर से पहले स्टाफ द्वारा जांचा जाना चाहिए।'],
+['CHC Mhow','CHC Mhow','सीएचसी महू'],['PHC Sanwer','PHC Sanwer','पीएचसी सांवेर'],['PHC Depalpur','PHC Depalpur','पीएचसी देपालपुर'],['CHC Hatod','CHC Hatod','सीएचसी हातोद'],['PHC Betma','PHC Betma','पीएचसी बेटमा'],
+['Paracetamol','Paracetamol','पैरासिटामोल'],['Amoxicillin','Amoxicillin','एमोक्सिसिलिन'],['ORS','ORS','ओआरएस'],['Metformin','Metformin','मेटफॉर्मिन'],
+['Amlodipine','Amlodipine','एम्लोडिपिन'],['Iron-Folic Acid','Iron-Folic Acid','आयरन-फोलिक एसिड'],['Cetirizine','Cetirizine','सेटिरिज़िन'],['Insulin','Insulin','इंसुलिन']
+];
+const T={en:{},hi:{}};L.forEach(([k,e,h])=>{T.en[k]=e;T.hi[k]=h});
+function t(k,v){let s=(T[S.lang]||{})[k]||T.en[k]||k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s}
+
+/* ===== 2. HELPERS ===== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum=(a,k)=>a.reduce((s,x)=>s+x[k],0), clamp=x=>Math.max(0,Math.min(1,x));
+const dstr=(o=0)=>{const d=new Date();d.setDate(d.getDate()+o);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const today=()=>dstr(0);
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ===== 3. SEED DATA (synthetic) ===== */
+const KEY='smarthealth_v1';
+const TESTS=['Blood Test','X-Ray','Ultrasound','Malaria RDT','ECG','Urine Test'];
+const MEDS=[['Paracetamol',40,'tabs'],['Amoxicillin',18,'caps'],['ORS',25,'sachets'],['Metformin',30,'tabs'],['Amlodipine',22,'tabs'],['Iron-Folic Acid',35,'tabs'],['Cetirizine',15,'tabs'],['Insulin',6,'vials']];
+function seed(lang){
+ const r=rng(7),D={lang:lang||'en',filter:'all',centres:[],medicines:[],usageLog:[],footfall:[],beds:[],doctors:[],attendance:[],diagnostics:[],transfers:[],nid:1000};
+ const C=[['CHC Mhow','CHC',0,0],['PHC Sanwer','PHC',18,-12],['PHC Depalpur','PHC',28,10],['CHC Hatod','CHC',-14,-9],['PHC Betma','PHC',-22,14]];
+ const COV=[[45,12,38,20,15,32,10,4],[3,34,8,15,40,6,28,35],[20,5,35,2,22,18,40,12],[33,28,4,36,9,25,6,30],[8,40,15,31,3,12,22,2]];
+ const NAMES=['Sharma','Verma','Khan','Patel','Joshi','Mehta','Gupta','Singh','Rao','Iyer','Nair','Das'],SPEC=['General Medicine','Paediatrics','Gynaecology'];
+ const DOWN={c2:['Ultrasound'],c3:['X-Ray','ECG'],c4:['ECG'],c5:['Blood Test','Ultrasound','Malaria RDT']};
+ let dn=0;
+ C.forEach(([name,type,x,y],i)=>{
+  const cid='c'+(i+1),chc=type==='CHC';D.centres.push({id:cid,name,type,x,y});
+  MEDS.forEach(([mn,base,unit],j)=>{
+   const mid='m'+(i+1)+'_'+j,b=base*(chc?1.3:1);let s7=0;
+   for(let d=13;d>=0;d--){const q=Math.round(b*(0.8+0.4*r()));D.usageLog.push({medicineId:mid,date:dstr(-d),qty:q});if(d<7)s7+=q}
+   D.medicines.push({id:mid,centreId:cid,name:mn,stock:Math.round(COV[i][j]*s7/7),reorderLevel:Math.round(b*7),unit});
+  });
+  const fb=cid==='c5'?110:chc?130:85;
+  for(let d=13;d>=0;d--)D.footfall.push({centreId:cid,date:dstr(-d),patients:Math.round(fb*(0.8+0.4*r()))});
+  [['General Ward',chc?30:10],['Maternity',chc?10:4],['Pediatric',chc?8:3]].forEach(([w,tot])=>{
+   let occ=Math.round(tot*(0.45+0.4*r()));
+   if((cid==='c4'&&w==='Maternity')||(cid==='c5'&&(w==='General Ward'||w==='Pediatric')))occ=tot;
+   D.beds.push({id:'b'+cid+w,centreId:cid,ward:w,total:tot,occupied:occ});
+  });
+  for(let k=0;k<(chc?3:2);k++){
+   const did='d'+(++dn);D.doctors.push({id:did,centreId:cid,name:'Dr. '+NAMES[dn-1]+' ('+(dn)+')',specialty:SPEC[dn%3]});
+   for(let d=13;d>=0;d--){let st=r()<0.84?'present':(r()<0.5?'absent':'leave');
+    if(d===0)st=(cid==='c5'&&k===0)?'absent':(cid==='c4'&&k===1)?'leave':'present';
+    D.attendance.push({doctorId:did,date:dstr(-d),status:st})}
+  }
+  TESTS.forEach(tn=>D.diagnostics.push({centreId:cid,test:tn,available:!(DOWN[cid]||[]).includes(tn),updatedAt:new Date().toLocaleString()}));
+ });
+ return D;
+}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.centres)return x}catch(e){}const d=seed();try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}return d}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let S=load(),tab='dash',charts={};
+
+/* ===== 4. CORE CALCULATIONS ===== */
+const F=()=>S.filter||'all', inS=cid=>F()==='all'||F()===cid, cen=id=>S.centres.find(c=>c.id===id);
+const dist=(a,b)=>{const p=cen(a),q=cen(b);return Math.round(Math.hypot(p.x-q.x,p.y-q.y)*10)/10};
+function avgUse(m){const lo=dstr(-6);let s=0;S.usageLog.forEach(u=>{if(u.medicineId===m.id&&u.date>=lo)s+=u.qty});return s/7}
+function calcDaysCover(m){const a=avgUse(m);return a>0?m.stock/a:null}   // null = no usage data (avoids Infinity/NaN)
+function medStatus(m){const c=calcDaysCover(m);if(m.stock<=0||(c!==null&&c<3))return'crit';if(m.stock<=m.reorderLevel||(c!==null&&c<7))return'low';return'ok'}
+function attStatus(did,date){const a=S.attendance.find(x=>x.doctorId===did&&x.date===date);return a?a.status:'unmarked'}
+function presentCount(cid){return S.doctors.filter(d=>d.centreId===cid&&attStatus(d.id,today())==='present').length}
+function footToday(cid){const f=S.footfall.find(x=>x.centreId===cid&&x.date===today());return f?f.patients:0}
+function bedPct(cid){const b=S.beds.filter(x=>x.centreId===cid),tot=sum(b,'total');return tot?Math.round(100*sum(b,'occupied')/tot):0}
+function calcRiskScore(cid){
+ const bad=S.medicines.filter(m=>m.centreId===cid&&medStatus(m)!=='ok').length;
+ const s=Math.round(30*Math.min(1,bad/4));                       // 4+ at-risk medicines = full 30
+ const b=Math.round(25*clamp((bedPct(cid)/100-0.6)/0.4));        // 60% occupancy = 0, 100% = 25
+ const docs=S.doctors.filter(d=>d.centreId===cid),away=docs.filter(d=>['absent','leave'].includes(attStatus(d.id,today()))).length;
+ const d=docs.length?Math.round(20*away/docs.length):0;
+ const pc=presentCount(cid),pat=footToday(cid),ppd=pc?pat/pc:(pat?999:0);
+ const l=Math.round(15*clamp((ppd-50)/70));                      // 50 patients/doctor = 0, 120+ = 15
+ const tests=S.diagnostics.filter(x=>x.centreId===cid),g=tests.length?Math.round(10*tests.filter(x=>!x.available).length/tests.length):0;
+ const total=s+b+d+l+g,comp=[['r_s',s/30],['r_b',b/25],['r_d',d/20],['r_l',l/15],['r_g',g/10]].sort((p,q)=>q[1]-p[1]);
+ return{s,b,d,l,g,total,level:total>=60?'crit':total>=35?'watch':'ok',top:total?comp[0][0]:null};
+}
+function buildRecommendations(){
+ const out=[];
+ [...new Set(S.medicines.map(m=>m.name))].forEach(n=>{
+  const ms=S.medicines.filter(m=>m.name===n).map(m=>({m,a:avgUse(m)})).filter(x=>x.a>0).map(x=>({...x,c:x.m.stock/x.a}));
+  const don=ms.filter(x=>x.c>30).map(x=>({...x,sp:Math.floor(x.m.stock-21*x.a),out:0}));
+  ms.filter(x=>x.c<7).sort((p,q)=>p.c-q.c).forEach(rc=>{
+   let want=Math.ceil(21*rc.a-rc.m.stock);
+   don.filter(d=>d.sp>0).sort((p,q)=>dist(p.m.centreId,rc.m.centreId)-dist(q.m.centreId,rc.m.centreId)).forEach(d=>{
+    if(want<=0||d.sp<=0)return;const q=Math.min(d.sp,want);d.sp-=q;want-=q;d.out+=q;
+    out.push({med:n,unit:rc.m.unit,fromId:d.m.id,toId:rc.m.id,from:d.m.centreId,to:rc.m.centreId,qty:q,dc:d.c,rc:rc.c,km:dist(d.m.centreId,rc.m.centreId),dl:(d.m.stock-d.out)/d.a});
+   });
+  });
+ });
+ return out.sort((a,b)=>a.rc-b.rc);
+}
+function buildAlerts(){
+ const A=[],cn=id=>t(cen(id).name);
+ S.medicines.filter(m=>inS(m.centreId)).forEach(m=>{const st=medStatus(m),c=calcDaysCover(m);if(st==='ok')return;const v={med:t(m.name),c:cn(m.centreId)};
+  if(m.stock<=0)A.push({lv:'crit',msg:t('a_out',v)});
+  else if(c!==null&&c<7)A.push({lv:st,msg:t('a_days',{...v,d:c.toFixed(1),date:dstr(Math.floor(c))})});
+  else A.push({lv:st,msg:t('a_low',{...v,s:m.stock,r:m.reorderLevel})})});
+ S.beds.filter(b=>inS(b.centreId)).forEach(b=>{const p=b.total?Math.round(100*b.occupied/b.total):0;if(p>=90)A.push({lv:p>=100?'crit':'low',msg:t('a_bed',{c:cn(b.centreId),w:t(b.ward),p})})});
+ S.doctors.filter(d=>inS(d.centreId)).forEach(d=>{const s=attStatus(d.id,today());if(s==='absent'||s==='leave')A.push({lv:'low',msg:t('a_doc',{c:cn(d.centreId),d:d.name,s:t(s)})})});
+ S.centres.filter(c=>inS(c.id)).forEach(c=>{const n=S.diagnostics.filter(x=>x.centreId===c.id&&!x.available).length;if(n)A.push({lv:'low',msg:t('a_diag',{c:cn(c.id),n})});
+  const r=calcRiskScore(c.id);if(r.level==='crit')A.push({lv:'crit',msg:t('a_risk',{c:cn(c.id),s:r.total})})});
+ return A.sort((a,b)=>(a.lv==='crit'?0:1)-(b.lv==='crit'?0:1));
+}
+
+/* ===== 5. UI HELPERS ===== */
+function toast(k){const e=$('toast');e.textContent=t(k);e.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.display='none',2500)}
+const done=()=>{save();render();toast('saved')};
+const badge=(c,k)=>`<span class="bg ${c}">${t(k)}</span>`;
+const tbl=(h,rows)=>`<div class="tw"><table><thead><tr>${h.map(x=>`<th>${t(x)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+const copts=sel=>S.centres.map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${esc(t(c.name))}</option>`).join('');
+const defC=()=>F()==='all'?S.centres[0].id:F();
+const bar=p=>`<span class="bar"><i class="${p>=90?'r':p>=75?'y':'g'}" style="width:${p}%"></i></span> ${p}%`;
+const num=id=>{const v=$(id).value;return v===''?NaN:Number(v)};
+const TABS=[['dash','t_dash'],['inv','t_inv'],['fc','t_fc'],['foot','t_foot'],['beds','t_beds'],['docs','t_docs'],['diag','t_diag'],['recs','t_recs']];
+function go(k){tab=k;render()}
+function setF(v){S.filter=v;save();render()}
+function toggleLang(){S.lang=S.lang==='en'?'hi':'en';save();render()}
+function resetDemo(){if(!confirm(t('c_reset')))return;S=seed(S.lang);save();render();toast('saved')}
+
+/* ===== 6. VIEWS ===== */
+function vDash(){
+ const R=S.centres.map(c=>({c,r:calcRiskScore(c.id)})).sort((a,b)=>b.r.total-a.r.total),sc=R.filter(x=>inS(x.c.id));
+ const low=S.medicines.filter(m=>inS(m.centreId)&&medStatus(m)!=='ok').length;
+ const bd=S.beds.filter(b=>inS(b.centreId)),bo=sum(bd,'total')?Math.round(100*sum(bd,'occupied')/sum(bd,'total')):0;
+ const dc=S.doctors.filter(d=>inS(d.centreId)),dp=dc.filter(d=>attStatus(d.id,today())==='present').length;
+ const ff=sc.reduce((s,x)=>s+footToday(x.c.id),0),al=buildAlerts(),rc=buildRecommendations().slice(0,3);
+ const k=(v,l,c)=>`<div class="card kpi ${c||''}" style="margin:0"><b>${v}</b><span>${t(l)}</span></div>`;
+ return `<div class="grid">${k(sc.filter(x=>x.r.level==='crit').length,'k_risk',sc.some(x=>x.r.level==='crit')?'r':'')}${k(low,'k_low',low?'r':'')}${k(bo+'%','k_beds')}${k((dc.length?Math.round(100*dp/dc.length):0)+'%','k_docs')}${k(ff,'k_foot')}</div>
+ <div class="two"><div class="card"><h2>${t('alerts')} (${al.length})</h2><div class="scroll">${al.length?al.map(a=>`<div class="al ${a.lv}">${esc(a.msg)}</div>`).join(''):`<p class="note">${t('noal')}</p>`}</div></div>
+ <div class="card"><h2>${t('rank')}</h2>${tbl(['centre','score','status','c_s','c_b','c_d','c_l','c_g','reason'],R.map(({c,r})=>`<tr class="${F()===c.id?'hl':''}"><td>${esc(t(c.name))}</td><td><b>${r.total}</b></td><td>${badge(r.level,r.level)}</td><td>${r.s}</td><td>${r.b}</td><td>${r.d}</td><td>${r.l}</td><td>${r.g}</td><td>${r.top?t(r.top):'–'}</td></tr>`))}<p class="note" style="margin:8px 0 0">${t('risknote')}</p></div></div>
+ <div class="two"><div class="card"><h2>${t('ch_foot')}</h2><div class="ch"><canvas id="ch1"></canvas></div></div><div class="card"><h2>${t('ch_beds')}</h2><div class="ch"><canvas id="ch2"></canvas></div></div></div>
+ <div class="card"><h2>${t('top3')}</h2>${rc.length?rc.map(recHtml).join(''):`<p class="note">${t('norec')}</p>`}</div>`;
+}
+function drawCharts(){
+ if(typeof Chart==='undefined')return;
+ const days=[-6,-5,-4,-3,-2,-1,0].map(dstr),mk=(id,cfg)=>{charts[id]=new Chart($(id),cfg)};
+ mk('ch1',{type:'line',data:{labels:days.map(d=>d.slice(5)),datasets:[{label:t('patients'),data:days.map(d=>S.footfall.filter(f=>inS(f.centreId)&&f.date===d).reduce((s,f)=>s+f.patients,0)),borderColor:'#0f766e',backgroundColor:'rgba(15,118,110,.15)',fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false}});
+ let lab,dat;if(F()==='all'){lab=S.centres.map(c=>t(c.name));dat=S.centres.map(c=>bedPct(c.id))}
+ else{const w=S.beds.filter(b=>b.centreId===F());lab=w.map(b=>t(b.ward));dat=w.map(b=>b.total?Math.round(100*b.occupied/b.total):0)}
+ mk('ch2',{type:'bar',data:{labels:lab,datasets:[{label:'%',data:dat,backgroundColor:dat.map(p=>p>=90?'#b42318':p>=75?'#f79009':'#067647')}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100}},plugins:{legend:{display:false}}}});
+}
+function vInv(){
+ const ms=S.medicines.filter(m=>inS(m.centreId)).sort((a,b)=>(calcDaysCover(a)??999)-(calcDaysCover(b)??999));
+ const rows=ms.map(m=>{const c=calcDaysCover(m),st=medStatus(m);
+  return `<tr><td>${esc(t(cen(m.centreId).name))}</td><td>${esc(t(m.name))}</td><td>${m.stock} ${esc(m.unit)}</td><td>${m.reorderLevel}</td><td>${avgUse(m).toFixed(1)}</td>
+  <td>${c===null?t('nodata'):c.toFixed(1)}</td><td>${c===null?'–':(m.stock<=0?today():dstr(Math.floor(c)))}</td><td>${badge(st,st)}</td>
+  <td><input class="sm" type="number" min="1" id="q_${m.id}" placeholder="${t('qty')}"> <button class="b o" onclick="useMed('${m.id}')">${t('use')}</button> <button class="b" onclick="recvMed('${m.id}')">${t('recv')}</button>
+  <button class="b o" onclick="editMed('${m.id}')">${t('edit')}</button> <button class="b d" onclick="delMed('${m.id}')">${t('del')}</button></td></tr>`});
+ return `<div class="card"><h2>${t('add_med')}</h2><div class="form"><label>${t('centre')}<select id="ac">${copts(defC())}</select></label><label>${t('name')}<input id="an"></label>
+ <label>${t('stock')}<input id="as" type="number" min="0" class="sm"></label><label>${t('reorder')}<input id="ar" type="number" min="0" class="sm"></label><label>${t('unit')}<input id="au" class="sm" value="tabs"></label>
+ <label>${t('daily')}<input id="ad" type="number" min="0" class="sm"></label><button class="b" onclick="addMed()">${t('add')}</button></div></div>
+ <div class="card"><p class="note">${t('formula')}</p>${tbl(['centre','medicine','stock','reorder','avg','days','sodate','status','qty'],rows)}</div>`;
+}
+function vFoot(){
+ const days=[-6,-5,-4,-3,-2,-1,0].map(dstr),sc=S.centres.filter(c=>inS(c.id));
+ const rows=sc.map(c=>{const pc=presentCount(c.id),p=footToday(c.id);return `<tr><td>${esc(t(c.name))}</td>${days.map(d=>{const f=S.footfall.find(x=>x.centreId===c.id&&x.date===d);return `<td>${f?f.patients:'–'}</td>`}).join('')}<td><b>${pc?Math.round(p/pc):'–'}</b></td></tr>`});
+ return `<div class="card"><h2>${t('log_foot')}</h2><div class="form"><label>${t('centre')}<select id="fc">${copts(defC())}</select></label><label>${t('date')}<input type="date" id="fd" value="${today()}" max="${today()}"></label>
+ <label>${t('patients')}<input type="number" min="0" id="fp" class="sm"></label><button class="b" onclick="addFoot()">${t('save')}</button></div></div>
+ <div class="card">${tbl(['centre',...days.map(d=>d.slice(5)),'ppd'],rows)}</div>`;
+}
+function vBeds(){
+ const rows=S.beds.filter(b=>inS(b.centreId)).map(b=>`<tr><td>${esc(t(cen(b.centreId).name))}</td><td>${esc(t(b.ward))}</td><td>${b.total}</td><td>${b.occupied}</td><td>${b.total-b.occupied}</td><td>${bar(b.total?Math.round(100*b.occupied/b.total):0)}</td>
+  <td><button class="b" onclick="bedMove('${b.id}',1)">${t('admit')}</button> <button class="b o" onclick="bedMove('${b.id}',-1)">${t('disch')}</button></td></tr>`);
+ return `<div class="card"><h2>${t('add_ward')}</h2><div class="form"><label>${t('centre')}<select id="wc">${copts(defC())}</select></label><label>${t('ward')}<input id="wn"></label><label>${t('total')}<input id="wt" type="number" min="1" class="sm"></label><label>${t('occ')}<input id="wo" type="number" min="0" class="sm" value="0"></label><button class="b" onclick="addWard()">${t('add')}</button></div></div>
+ <div class="card">${tbl(['centre','ward','total','occ','free','status','qty'],rows)}</div>`;
+}
+function vDocs(){
+ const rows=S.doctors.filter(d=>inS(d.centreId)).map(d=>{const lo=dstr(-13),rec=S.attendance.filter(a=>a.doctorId===d.id&&a.date>=lo),p=rec.length?Math.round(100*rec.filter(a=>a.status==='present').length/rec.length):0,st=attStatus(d.id,today());
+  return `<tr><td>${esc(t(cen(d.centreId).name))}</td><td>${esc(d.name)}</td><td>${esc(t(d.specialty))}</td><td><select onchange="setAtt('${d.id}',this.value)">${['present','absent','leave'].map(s=>`<option value="${s}"${st===s?' selected':''}>${t(s)}</option>`).join('')}${st==='unmarked'?'<option selected>–</option>':''}</select></td><td><span class="bar"><i class="${p>=80?'g':p>=60?'y':'r'}" style="width:${p}%"></i></span> ${p}%</td></tr>`});
+ return `<div class="card"><h2>${t('add_doc')}</h2><div class="form"><label>${t('centre')}<select id="dc">${copts(defC())}</select></label><label>${t('name')}<input id="dn"></label>
+ <label>${t('spec')}<select id="ds">${['General Medicine','Paediatrics','Gynaecology'].map(s=>`<option value="${s}">${t(s)}</option>`).join('')}</select></label><button class="b" onclick="addDoc()">${t('add')}</button></div></div>
+ <div class="card">${tbl(['centre','doctor','spec','today','att'],rows)}</div>`;
+}
+function vDiag(){
+ const rows=TESTS.map(tn=>{const av=S.centres.filter(c=>S.diagnostics.find(x=>x.centreId===c.id&&x.test===tn&&x.available)).length;
+  return `<tr><td><b>${t(tn)}</b></td>${S.centres.map(c=>{const d=S.diagnostics.find(x=>x.centreId===c.id&&x.test===tn);return `<td><button class="cell ${d.available?'y':'n'}" title="${t('upd')}: ${esc(d.updatedAt)}" onclick="togDiag('${c.id}','${tn}')">${t(d.available?'yes':'no')}</button></td>`}).join('')}<td>${av}/${S.centres.length}</td></tr>`});
+ return `<div class="card"><p class="note">${t('dhint')}</p>${tbl(['test',...S.centres.map(c=>c.name),'availin'],rows)}</div>`;
+}
+function recHtml(r,i){
+ const v={donor:t(cen(r.from).name),recv:t(cen(r.to).name),med:t(r.med),dc:r.dc.toFixed(1),rc:r.rc.toFixed(1),km:r.km,qty:r.qty,unit:r.unit,dl:r.dl.toFixed(1)};
+ return `<div class="rec"><b>${t('from')}: ${esc(v.donor)} → ${t('to')}: ${esc(v.recv)} · ${esc(v.med)} · ${r.qty} ${esc(r.unit)}</b><br>${esc(t('rec_msg',v))}<br><button class="b" style="margin-top:6px" onclick="applyRec(${i})">${t('apply')}</button></div>`;
+}
+function vRecs(){
+ const rc=buildRecommendations(),h=S.transfers.slice().reverse().map(x=>`<tr><td>${x.date}</td><td>${esc(t(x.medicineName))}</td><td>${esc(t(cen(x.fromCentre).name))}</td><td>${esc(t(cen(x.toCentre).name))}</td><td>${x.qty}</td></tr>`);
+ return `<div class="card"><p class="note">${t('recnote')}</p>${rc.length?rc.map(recHtml).join(''):`<p class="note">${t('norec')}</p>`}</div>
+ <div class="card"><h2>${t('hist')}</h2>${h.length?tbl(['date','medicine','from','to','qty'],h):'<p class="note">–</p>'}</div>`;
+}
+
+/* ===== 7. ACTIONS ===== */
+function useMed(id){const m=S.medicines.find(x=>x.id===id),q=num('q_'+id);if(!(q>0))return toast('e_num');if(q>m.stock)return toast('e_use');
+ m.stock-=Math.round(q);const u=S.usageLog.find(x=>x.medicineId===id&&x.date===today());u?u.qty+=Math.round(q):S.usageLog.push({medicineId:id,date:today(),qty:Math.round(q)});done()}
+function recvMed(id){const m=S.medicines.find(x=>x.id===id),q=num('q_'+id);if(!(q>0))return toast('e_num');m.stock+=Math.round(q);done()}
+function editMed(id){const m=S.medicines.find(x=>x.id===id),n=prompt(t('name'),m.name);if(n===null)return;const r=prompt(t('reorder'),m.reorderLevel);if(r===null)return;
+ if(!n.trim())return toast('e_name');if(r.trim()===''||!(Number(r)>=0))return toast('e_num');m.name=n.trim();m.reorderLevel=Math.round(Number(r));done()}
+function delMed(id){if(!confirm(t('c_del')))return;S.medicines=S.medicines.filter(x=>x.id!==id);S.usageLog=S.usageLog.filter(x=>x.medicineId!==id);done()}
+function addMed(){const n=$('an').value.trim(),st=num('as'),ro=num('ar'),dl=$('ad').value===''?0:num('ad');
+ if(!n)return toast('e_name');if(!(st>=0)||!(ro>=0)||!(dl>=0))return toast('e_num');
+ const m={id:'m'+(S.nid++),centreId:$('ac').value,name:n,stock:Math.round(st),reorderLevel:Math.round(ro),unit:$('au').value.trim()||'units'};S.medicines.push(m);
+ if(dl>0)for(let i=6;i>=0;i--)S.usageLog.push({medicineId:m.id,date:dstr(-i),qty:Math.round(dl)});done()}
+function addFoot(){const d=$('fd').value,p=num('fp'),c=$('fc').value;if(!d)return toast('e_date');if(!(p>=0))return toast('e_num');
+ const f=S.footfall.find(x=>x.centreId===c&&x.date===d);f?f.patients=Math.round(p):S.footfall.push({centreId:c,date:d,patients:Math.round(p)});done()}
+function bedMove(id,dir){const b=S.beds.find(x=>x.id===id);if(dir>0&&b.occupied>=b.total)return toast('e_full');if(dir<0&&b.occupied<=0)return toast('e_zero');b.occupied+=dir;done()}
+function addWard(){const n=$('wn').value.trim(),tot=num('wt'),o=num('wo');if(!n)return toast('e_name');if(!(tot>0)||!(o>=0)||o>tot)return toast('e_num');
+ S.beds.push({id:'b'+(S.nid++),centreId:$('wc').value,ward:n,total:Math.round(tot),occupied:Math.round(o)});done()}
+function setAtt(did,st){const a=S.attendance.find(x=>x.doctorId===did&&x.date===today());a?a.status=st:S.attendance.push({doctorId:did,date:today(),status:st});done()}
+function addDoc(){const n=$('dn').value.trim();if(!n)return toast('e_name');const id='d'+(S.nid++);
+ S.doctors.push({id,centreId:$('dc').value,name:n,specialty:$('ds').value});S.attendance.push({doctorId:id,date:today(),status:'present'});done()}
+function togDiag(cid,tn){const d=S.diagnostics.find(x=>x.centreId===cid&&x.test===tn);d.available=!d.available;d.updatedAt=new Date().toLocaleString();done()}
+function applyRec(i){const r=buildRecommendations()[i];if(!r)return;const a=S.medicines.find(m=>m.id===r.fromId),b=S.medicines.find(m=>m.id===r.toId);
+ if(!a||!b||a.stock<r.qty)return toast('e_tr');a.stock-=r.qty;b.stock+=r.qty;
+ S.transfers.push({id:'t'+(S.nid++),medicineName:r.med,fromCentre:r.from,toCentre:r.to,qty:r.qty,date:today()});save();render();toast('done_tr')}
+
+/* ===== 7b. DEMAND FORECAST (moving average + trend; NOT machine learning) ===== */
+let fcSel=null;
+const fcCfg=()=>S.fcCfg||(S.fcCfg={lead:7,safety:3,cycle:30});
+const RK={high:['crit','fc_high'],med:['low','fc_med'],low:['ok','fc_lowr'],unk:['watch','fc_unk']};
+function useBetween(id,a,b){let s=0;S.usageLog.forEach(u=>{if(u.medicineId===id&&u.date>=a&&u.date<=b)s+=u.qty});return s}
+function calcForecast(m){
+ const c=fcCfg(),lead=m.lead!=null?m.lead:c.lead;
+ const r=useBetween(m.id,dstr(-6),dstr(0))/7,p=useBetween(m.id,dstr(-13),dstr(-7))/7;   // recent vs previous week, per day
+ const tr=p>0?Math.min(1.2,Math.max(0.8,r/p)):1,d=r*tr;                                  // trend factor capped 0.8-1.2
+ const dl=d>0?m.stock/d:null,rop=d*(lead+c.safety),need=d>0&&m.stock<=rop;
+ const qty=need?Math.max(0,Math.ceil(d*(lead+c.safety+c.cycle)-m.stock)):0;
+ const risk=dl===null?'unk':dl<lead?'high':dl<lead+c.safety?'med':'low';
+ return{r,p,tr,d,d7:d*7,d30:d*30,dl,lead,rop,need,qty,risk,short:Math.max(0,d*lead-m.stock)};
+}
+function fcRows(){const O={high:0,med:1,unk:2,low:3};
+ return S.medicines.filter(m=>inS(m.centreId)).map(m=>({m,f:calcForecast(m)})).sort((a,b)=>O[a.f.risk]-O[b.f.risk]||(a.f.dl??999)-(b.f.dl??999))}
+function vFc(){
+ const c=fcCfg(),rows=fcRows(),fx=n=>n.toFixed(1);
+ if(!rows.length)return `<div class="card"><p class="note">–</p></div>`;
+ if(!rows.some(x=>x.m.id===fcSel))fcSel=rows[0].m.id;
+ const {m,f}=rows.find(x=>x.m.id===fcSel);
+ const body=rows.map(({m,f})=>`<tr class="${m.id===fcSel?'hl':''}" style="cursor:pointer" onclick="selFc('${m.id}')"><td>${esc(t(cen(m.centreId).name))}</td><td>${esc(t(m.name))}</td><td>${m.stock}</td><td>${fx(f.d)}</td><td>${Math.round(f.d7)}</td><td>${Math.round(f.d30)}</td><td>${f.dl===null?t('nodata'):fx(f.dl)}</td>
+  <td><input class="sm" type="number" min="0" value="${m.lead!=null?m.lead:''}" placeholder="${c.lead}" onclick="event.stopPropagation()" onchange="setLead('${m.id}',this.value)"></td><td>${Math.round(f.rop)}</td><td>${f.qty>0?`<b>${f.qty}</b> ${esc(m.unit)}`:'–'}</td><td>${badge(RK[f.risk][0],RK[f.risk][1])}</td></tr>`);
+ const ord=f.d<=0?'':f.need?t('fc_ordnow',{q:f.qty,unit:m.unit}):t('fc_ordlater',{n:fx((m.stock-f.rop)/f.d)});
+ const ex=f.d<=0?t('nodata'):t('fc_worked',{r:fx(f.r),p:fx(f.p),tr:f.tr.toFixed(2),d:fx(f.d),s:m.stock,unit:m.unit,dl:fx(f.dl),lead:f.lead,safe:c.safety,rop:Math.round(f.rop),ord})+(f.dl<f.lead?' '+t('fc_gap',{x:fx(f.lead-f.dl),sh:Math.ceil(f.short)}):'');
+ const inp=(id,l,v,mn)=>`<label>${t(l)}<input id="${id}" type="number" min="${mn}" class="sm" value="${v}"></label>`;
+ return `<div class="card"><h2>${t('fc_cfg')}</h2><div class="form">${inp('fl','fc_lead',c.lead,0)}${inp('fs','fc_safe',c.safety,0)}${inp('fy','fc_cycle',c.cycle,1)}<button class="b" onclick="saveFc()">${t('save')}</button></div></div>
+ <div class="card"><p class="note">${t('fc_ovr')}</p>${tbl(['centre','medicine','stock','fc_d','fc_7','fc_30','days','fc_lt','fc_rop','fc_qty','fc_risk'],body)}</div>
+ <div class="two"><div class="card"><h2>${t('fc_c1')}</h2><div class="ch"><canvas id="fc1"></canvas></div></div><div class="card"><h2>${t('fc_c2')}: ${esc(t(m.name))}</h2><div class="ch"><canvas id="fc2"></canvas></div></div></div>
+ <div class="card"><h2>${t('fc_ex')}</h2><div class="form" style="margin-bottom:8px"><select onchange="selFc(this.value)">${rows.map(x=>`<option value="${x.m.id}"${x.m.id===fcSel?' selected':''}>${esc(t(x.m.name))} – ${esc(t(cen(x.m.centreId).name))}</option>`).join('')}</select></div><p style="margin:0">${esc(ex)}</p></div>
+ <div class="card"><h2>${t('fc_how')}</h2><ul style="margin:0;padding-left:20px">${[1,2,3,4,5,6].map(i=>`<li style="margin-bottom:6px">${t('fc_h'+i)}</li>`).join('')}</ul></div>`;
+}
+function drawFcCharts(){
+ if(typeof Chart==='undefined'||!$('fc1'))return;
+ const rows=fcRows(),top=rows.slice(0,8),sel=rows.find(x=>x.m.id===fcSel);
+ charts.fc1=new Chart($('fc1'),{type:'bar',data:{labels:top.map(x=>[t(x.m.name),t(cen(x.m.centreId).name)]),datasets:[
+  {label:t('stock'),data:top.map(x=>x.m.stock),backgroundColor:'#98a9a5'},{label:t('fc_7'),data:top.map(x=>Math.round(x.f.d7)),backgroundColor:'#0f766e'},{label:t('fc_30'),data:top.map(x=>Math.round(x.f.d30)),backgroundColor:'#f79009'}]},
+  options:{responsive:true,maintainAspectRatio:false}});
+ if(!sel)return;const days=[...Array(31).keys()];
+ charts.fc2=new Chart($('fc2'),{type:'line',data:{labels:days,datasets:[
+  {label:t('fc_proj'),data:days.map(d=>Math.max(0,Math.round(sel.m.stock-sel.f.d*d))),borderColor:'#0f766e',backgroundColor:'rgba(15,118,110,.15)',fill:true,pointRadius:0},
+  {label:t('fc_rop'),data:days.map(()=>Math.round(sel.f.rop)),borderColor:'#b42318',borderDash:[6,4],pointRadius:0}]},
+  options:{responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:t('fc_day')}}}}});
+}
+function selFc(id){fcSel=id;render()}
+function saveFc(){const l=num('fl'),s=num('fs'),y=num('fy');if(!(l>=0)||!(s>=0)||!(y>=1))return toast('e_num');S.fcCfg={lead:l,safety:s,cycle:y};done()}
+function setLead(id,v){const m=S.medicines.find(x=>x.id===id);if(v.trim()===''){delete m.lead}else{const n=Number(v);if(!(n>=0))return toast('e_num');m.lead=n}done()}
+
+/* ===== 8. RENDER ===== */
+function render(){
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+ document.documentElement.lang=S.lang;$('lang').textContent=S.lang==='en'?'हिं':'EN';
+ $('flt').innerHTML=`<option value="all">${t('allc')}</option>`+S.centres.map(c=>`<option value="${c.id}"${F()===c.id?' selected':''}>${esc(t(c.name))}</option>`).join('');
+ $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab${tab===k?' on':''}" onclick="go('${k}')">${t(l)}</button>`).join('');
+ Object.values(charts).forEach(c=>c.destroy());charts={};
+ $('view').innerHTML=({dash:vDash,inv:vInv,fc:vFc,foot:vFoot,beds:vBeds,docs:vDocs,diag:vDiag,recs:vRecs})[tab]();
+ if(tab==='dash')drawCharts();if(tab==='fc')drawFcCharts();
+}
+render();
+</script></body></html>
